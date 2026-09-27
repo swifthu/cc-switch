@@ -23,7 +23,7 @@ use tokio::task::JoinHandle;
 use tokio::time::{sleep, Duration};
 use tower_http::cors::{Any, CorsLayer};
 
-const DEFAULT_HOST: &str = "127.0.0.1";
+const DEFAULT_HOST: &str = "0.0.0.0";
 const DEFAULT_PORT: u16 = 8790;
 const LOG_RING_LIMIT: usize = 600;
 const MAX_REQUEST_BODY_BYTES: usize = 4 * 1024 * 1024;

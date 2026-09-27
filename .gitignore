@@ -29,3 +29,6 @@ copilot-api
 .history
 CODEBUDDY.md
 mainWindow.js
+
+# macOS AppleDouble resource fork files (created by Finder during file copy)
+._*

@@ -1,0 +1,13 @@
+# Cargo configuration for src-tauri
+#
+# Pin target directory to the internal SSD so that build artifacts
+# never land on the external volume. The external volume's filesystem
+# generates macOS AppleDouble (`._*`) metadata files on each write,
+# which breaks Tauri's build script (build.rs) when it tries to read
+# `default.toml` permission templates.
+#
+# Internal APFS does NOT produce AppleDouble files, so build scripts
+# run cleanly there. See project root docs for context.
+
+[build]
+target-dir = "/Users/jimmyhu/ccswitch-target"
