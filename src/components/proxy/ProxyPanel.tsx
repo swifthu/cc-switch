@@ -352,6 +352,32 @@ export function ProxyPanel({
                 </p>
               </div>
 
+              {/* [4b] API Key — only shown when running */}
+              {status.running && status.gateway_token && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {t("proxy.panel.apiKey", { defaultValue: "API Key" })}
+                  </p>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <input
+                      readOnly
+                      className="flex-1 text-sm bg-background px-3 py-2 rounded border border-border/60 font-mono"
+                      value={status.gateway_token}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText(status.gateway_token!);
+                        toast.success(t("common.copied"));
+                      }}
+                    >
+                      {t("common.copy")}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <div className="pt-3 border-t border-border space-y-2">
                 <p className="text-xs text-muted-foreground">
                   {t("provider.inUse")}

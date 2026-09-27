@@ -2807,6 +2807,7 @@
   },
   "proxy": {
     "panel": {
+      "apiKey": "API Key",
       "serviceAddress": "服務位址",
       "addressCopied": "位址已複製",
       "currentProvider": "目前 Provider：",

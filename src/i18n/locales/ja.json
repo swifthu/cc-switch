@@ -2806,6 +2806,7 @@
   },
   "proxy": {
     "panel": {
+      "apiKey": "API Key",
       "serviceAddress": "サービスアドレス",
       "addressCopied": "アドレスをコピーしました",
       "currentProvider": "現在のプロバイダー:",
