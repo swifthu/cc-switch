@@ -89,6 +89,9 @@ pub struct ProxyStatus {
     /// 当前活跃的代理目标列表
     #[serde(default)]
     pub active_targets: Vec<ActiveTarget>,
+    /// API Gateway Token (for proxy authentication)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gateway_token: Option<String>,
 }
 
 /// 活跃的代理目标信息
