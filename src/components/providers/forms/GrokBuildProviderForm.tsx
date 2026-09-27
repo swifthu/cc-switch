@@ -33,9 +33,10 @@ import { BasicFormFields } from "./BasicFormFields";
 import { CodexFormFields } from "./CodexFormFields";
 import { ProviderPresetSelector } from "./ProviderPresetSelector";
 import {
-  codexProviderPresets,
-  type CodexProviderPreset,
-} from "@/config/codexProviderPresets";
+  grokBuildOfficialPreset,
+  grokBuildProviderPresets,
+  type GrokBuildProviderPreset,
+} from "@/config/grokBuildProviderPresets";
 import {
   codexApiFormatFromWireApi,
   extractCodexBaseUrl,
@@ -44,26 +45,28 @@ import {
 } from "@/utils/providerConfigUtils";
 import {
   buildGrokBuildConfig,
+  GROK_BUILD_DEFAULT_API_BACKEND,
   parseGrokBuildConfig,
   updateGrokBuildConfig,
   validateGrokBuildConfig,
 } from "@/utils/grokBuildConfig";
 import { resolveProviderIcon } from "@/utils/providerIcon";
+import { GROKBUILD_OFFICIAL_PROVIDER_ID } from "@/utils/providerCapabilities";
 
 type GrokBuildProviderFormProps = Omit<ProviderFormProps, "appId">;
 
+// 预设列表见 grokBuildProviderPresets.ts：独立维护（与 Codex 预设无联动），
+// 不含官方 / OAuth / 国产官方直连 / 纯开源托管站，默认模型为 Grok 系。
 const grokPresetEntries: Array<{
   id: string;
-  preset: CodexProviderPreset;
-}> = codexProviderPresets
-  .map((preset, index) => ({ id: `grokbuild-${index}`, preset }))
-  .filter(({ preset }) => preset.category !== "official" && !preset.isOfficial);
-
-export const grokApiBackendFromApiFormat = (format: CodexApiFormat): string => {
-  if (format === "openai_chat") return "chat_completions";
-  if (format === "anthropic") return "messages";
-  return "responses";
-};
+  preset: GrokBuildProviderPreset;
+}> = [
+  { id: GROKBUILD_OFFICIAL_PROVIDER_ID, preset: grokBuildOfficialPreset },
+  ...grokBuildProviderPresets.map((preset, index) => ({
+    id: `grokbuild-${index}`,
+    preset,
+  })),
+];
 
 export function GrokBuildProviderForm({
   providerId,
@@ -101,7 +104,6 @@ export function GrokBuildProviderForm({
   );
   const [baseUrl, setBaseUrl] = useState(initialConfig.baseUrl);
   const [apiKey, setApiKey] = useState(initialConfig.apiKey);
-  const [apiBackend, setApiBackend] = useState(initialConfig.apiBackend);
   const [contextWindow, setContextWindow] = useState(
     String(initialConfig.contextWindow),
   );
@@ -179,12 +181,10 @@ export function GrokBuildProviderForm({
     onSubmittingChange?.(isSubmitting);
   }, [isSubmitting, onSubmittingChange]);
 
+  // Grok Build 预设已不含 cn_official（国产官方直连无法在 Grok CLI 使用）
   const presetCategoryLabels = useMemo(
     () => ({
       official: t("providerForm.categoryOfficial", { defaultValue: "官方" }),
-      cn_official: t("providerForm.categoryCnOfficial", {
-        defaultValue: "国内官方",
-      }),
       aggregator: t("providerForm.categoryAggregation", {
         defaultValue: "聚合服务",
       }),
@@ -216,9 +216,9 @@ export function GrokBuildProviderForm({
       baseUrl,
       name: form.getValues("name") || initialConfig.name,
       apiKey,
-      apiBackend,
       contextWindow: Number.parseInt(contextWindow, 10),
       ...overrides,
+      apiBackend: GROK_BUILD_DEFAULT_API_BACKEND,
     };
     setRawConfig((current) => updateGrokBuildConfig(current, next));
   };
@@ -230,6 +230,20 @@ export function GrokBuildProviderForm({
       setIsPartner(false);
       setPartnerPromotionKey(undefined);
       setPresetEndpoints([]);
+      return;
+    }
+
+    if (presetId === GROKBUILD_OFFICIAL_PROVIDER_ID) {
+      // 官方登录：无 API Key / 地址 / 模型表可填，提交走 ensure seed 流程
+      form.setValue("name", grokBuildOfficialPreset.name);
+      form.setValue("websiteUrl", grokBuildOfficialPreset.websiteUrl);
+      form.setValue("icon", grokBuildOfficialPreset.icon ?? "");
+      form.setValue("iconColor", grokBuildOfficialPreset.iconColor ?? "");
+      setCategory("official");
+      setIsPartner(false);
+      setPartnerPromotionKey(undefined);
+      setPresetEndpoints([]);
+      setRawConfig("");
       return;
     }
 
@@ -249,8 +263,6 @@ export function GrokBuildProviderForm({
       "auth" in preset && typeof preset.auth?.OPENAI_API_KEY === "string"
         ? preset.auth.OPENAI_API_KEY
         : "";
-    const presetApiBackend = grokApiBackendFromApiFormat(presetApiFormat);
-
     form.setValue("name", presetName);
     form.setValue("websiteUrl", preset.websiteUrl ?? "");
     form.setValue("icon", preset.icon ?? "");
@@ -262,7 +274,6 @@ export function GrokBuildProviderForm({
     setApiKey(presetApiKey);
     setUpstreamModel(presetModel);
     setApiFormat(presetApiFormat);
-    setApiBackend(presetApiBackend);
     setPresetEndpoints(preset.endpointCandidates ?? []);
     setRawConfig(
       buildGrokBuildConfig({
@@ -271,7 +282,7 @@ export function GrokBuildProviderForm({
         baseUrl: presetBaseUrl,
         name: presetName,
         apiKey: presetApiKey,
-        apiBackend: presetApiBackend,
+        apiBackend: GROK_BUILD_DEFAULT_API_BACKEND,
         contextWindow: Number.parseInt(contextWindow, 10),
       }),
     );
@@ -285,13 +296,30 @@ export function GrokBuildProviderForm({
     setUpstreamModel(parsed.upstreamModel ?? parsed.model);
     setBaseUrl(parsed.baseUrl);
     setApiKey(parsed.apiKey);
-    setApiBackend(parsed.apiBackend);
     setContextWindow(String(parsed.contextWindow));
     if (parsed.name) form.setValue("name", parsed.name);
   };
 
   const handleSubmit = async (values: ProviderFormData) => {
     const name = values.name.trim();
+
+    // 官方条目：config 快照原样透传（新增时为空），不做自定义模型字段校验，
+    // 也不重建 config —— 新增走 ensure seed，编辑只允许改名称/图标等元信息。
+    if (category === "official") {
+      await onSubmit({
+        ...values,
+        name,
+        websiteUrl: values.websiteUrl?.trim() ?? "",
+        notes: values.notes?.trim() ?? "",
+        settingsConfig: JSON.stringify({ config: rawConfig }),
+        presetId: selectedPresetId ?? undefined,
+        presetCategory: "official",
+        isPartner: false,
+        meta: initialData?.meta,
+      });
+      return;
+    }
+
     const parsedContextWindow = Number.parseInt(contextWindow, 10);
     const envKey = parseGrokBuildConfig(rawConfig).envKey?.trim();
     if (
@@ -322,7 +350,7 @@ export function GrokBuildProviderForm({
       baseUrl,
       name,
       apiKey,
-      apiBackend,
+      apiBackend: GROK_BUILD_DEFAULT_API_BACKEND,
       contextWindow: parsedContextWindow,
     });
     const configError = validateGrokBuildConfig(finalConfig);
@@ -397,7 +425,7 @@ export function GrokBuildProviderForm({
       <form
         id="provider-form"
         onSubmit={form.handleSubmit(handleSubmit)}
-        className="space-y-6"
+        className="space-y-6 glass rounded-xl p-6 border border-white/10"
       >
         {!initialData && (
           <ProviderPresetSelector
@@ -411,141 +439,107 @@ export function GrokBuildProviderForm({
 
         <BasicFormFields form={form} />
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <FormItem>
-            <FormLabel htmlFor="grokbuild-profile">
-              {t("grokBuild.profile", { defaultValue: "客户端模型档位" })}
-            </FormLabel>
-            <Input
-              id="grokbuild-profile"
-              value={profile}
-              onChange={(event) => {
-                const value = event.target.value;
-                setProfile(value);
-                syncStructuredConfig({ model: value });
+        {category !== "official" && (
+          <>
+            <CodexFormFields
+              appId="grokbuild"
+              providerId={providerId}
+              codexApiKey={apiKey}
+              onApiKeyChange={(value) => {
+                setApiKey(value);
+                syncStructuredConfig({ apiKey: value });
               }}
-              placeholder="grok-4.5"
-              autoComplete="off"
-            />
-          </FormItem>
-
-          <FormItem>
-            <FormLabel htmlFor="grokbuild-api-backend">
-              {t("grokBuild.apiBackend", { defaultValue: "API Backend" })}
-            </FormLabel>
-            <Input
-              id="grokbuild-api-backend"
-              value={apiBackend}
-              onChange={(event) => {
-                const value = event.target.value;
-                setApiBackend(value);
-                syncStructuredConfig({ apiBackend: value });
+              category={category}
+              shouldShowApiKeyLink={Boolean(websiteUrl)}
+              websiteUrl={websiteUrl}
+              isPartner={isPartner}
+              partnerPromotionKey={partnerPromotionKey}
+              shouldShowSpeedTest
+              codexBaseUrl={baseUrl}
+              onBaseUrlChange={(value) => {
+                setBaseUrl(value);
+                syncStructuredConfig({ baseUrl: value });
               }}
-              placeholder="responses"
-              autoComplete="off"
-            />
-          </FormItem>
-
-          <FormItem>
-            <FormLabel htmlFor="grokbuild-context-window">
-              {t("grokBuild.contextWindow", { defaultValue: "上下文窗口" })}
-            </FormLabel>
-            <Input
-              id="grokbuild-context-window"
-              type="number"
-              min={1}
-              step={1}
-              value={contextWindow}
-              onChange={(event) => {
-                const value = event.target.value;
-                setContextWindow(value);
-                syncStructuredConfig({
-                  contextWindow: Number.parseInt(value, 10),
-                });
+              isFullUrl={isFullUrl}
+              onFullUrlChange={setIsFullUrl}
+              isEndpointModalOpen={isEndpointModalOpen}
+              onEndpointModalToggle={setIsEndpointModalOpen}
+              onCustomEndpointsChange={setDraftCustomEndpoints}
+              autoSelect={endpointAutoSelect}
+              onAutoSelectChange={setEndpointAutoSelect}
+              codexModel={upstreamModel}
+              onModelChange={(value) => {
+                setUpstreamModel(value);
+                syncStructuredConfig({ upstreamModel: value });
               }}
+              apiFormat={apiFormat}
+              onApiFormatChange={(value) => {
+                setApiFormat(value);
+              }}
+              anthropicAuthField={anthropicAuthField}
+              onAnthropicAuthFieldChange={setAnthropicAuthField}
+              impersonateClaudeCode={impersonateClaudeCode}
+              onImpersonateClaudeCodeChange={setImpersonateClaudeCode}
+              maxOutputTokens={maxOutputTokens}
+              onMaxOutputTokensChange={setMaxOutputTokens}
+              codexChatReasoning={codexChatReasoning}
+              onCodexChatReasoningChange={setCodexChatReasoning}
+              promptCacheRouting={promptCacheRouting}
+              onPromptCacheRoutingChange={setPromptCacheRouting}
+              speedTestEndpoints={speedTestEndpoints}
+              customUserAgent={customUserAgent}
+              onCustomUserAgentChange={setCustomUserAgent}
+              localProxyHeadersOverride={headersOverride}
+              onLocalProxyHeadersOverrideChange={setHeadersOverride}
+              localProxyBodyOverride={bodyOverride}
+              onLocalProxyBodyOverrideChange={setBodyOverride}
             />
-          </FormItem>
-        </div>
 
-        <CodexFormFields
-          appId="grokbuild"
-          providerId={providerId}
-          codexApiKey={apiKey}
-          onApiKeyChange={(value) => {
-            setApiKey(value);
-            syncStructuredConfig({ apiKey: value });
-          }}
-          category={category}
-          shouldShowApiKeyLink={Boolean(websiteUrl)}
-          websiteUrl={websiteUrl}
-          isPartner={isPartner}
-          partnerPromotionKey={partnerPromotionKey}
-          shouldShowSpeedTest
-          codexBaseUrl={baseUrl}
-          onBaseUrlChange={(value) => {
-            setBaseUrl(value);
-            syncStructuredConfig({ baseUrl: value });
-          }}
-          isFullUrl={isFullUrl}
-          onFullUrlChange={setIsFullUrl}
-          isEndpointModalOpen={isEndpointModalOpen}
-          onEndpointModalToggle={setIsEndpointModalOpen}
-          onCustomEndpointsChange={setDraftCustomEndpoints}
-          autoSelect={endpointAutoSelect}
-          onAutoSelectChange={setEndpointAutoSelect}
-          codexModel={upstreamModel}
-          onModelChange={(value) => {
-            setUpstreamModel(value);
-            syncStructuredConfig({ upstreamModel: value });
-          }}
-          apiFormat={apiFormat}
-          onApiFormatChange={(value) => {
-            const backend = grokApiBackendFromApiFormat(value);
-            setApiFormat(value);
-            setApiBackend(backend);
-            syncStructuredConfig({ apiBackend: backend });
-          }}
-          anthropicAuthField={anthropicAuthField}
-          onAnthropicAuthFieldChange={setAnthropicAuthField}
-          impersonateClaudeCode={impersonateClaudeCode}
-          onImpersonateClaudeCodeChange={setImpersonateClaudeCode}
-          maxOutputTokens={maxOutputTokens}
-          onMaxOutputTokensChange={setMaxOutputTokens}
-          codexChatReasoning={codexChatReasoning}
-          onCodexChatReasoningChange={setCodexChatReasoning}
-          promptCacheRouting={promptCacheRouting}
-          onPromptCacheRoutingChange={setPromptCacheRouting}
-          speedTestEndpoints={speedTestEndpoints}
-          customUserAgent={customUserAgent}
-          onCustomUserAgentChange={setCustomUserAgent}
-          localProxyHeadersOverride={headersOverride}
-          onLocalProxyHeadersOverrideChange={setHeadersOverride}
-          localProxyBodyOverride={bodyOverride}
-          onLocalProxyBodyOverrideChange={setBodyOverride}
-        />
+            <FormItem>
+              <FormLabel htmlFor="grokbuild-context-window">
+                {t("grokBuild.contextWindow", { defaultValue: "上下文窗口" })}
+              </FormLabel>
+              <Input
+                id="grokbuild-context-window"
+                type="number"
+                min={1}
+                step={1}
+                inputMode="numeric"
+                value={contextWindow}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setContextWindow(value);
+                  syncStructuredConfig({
+                    contextWindow: Number.parseInt(value, 10),
+                  });
+                }}
+              />
+            </FormItem>
 
-        <div className="space-y-2">
-          <FormLabel htmlFor="grokbuild-config-toml">
-            {t("grokBuild.rawConfig", { defaultValue: "config.toml" })}
-          </FormLabel>
-          <JsonEditor
-            value={rawConfig}
-            onChange={handleRawConfigChange}
-            placeholder=""
-            darkMode={isDarkMode}
-            rows={12}
-            showValidation={false}
-            language="javascript"
-          />
-          {rawConfigError && (
-            <p className="text-xs text-destructive">
-              {t("grokBuild.invalidToml", {
-                error: rawConfigError,
-                defaultValue: `Invalid config.toml: ${rawConfigError}`,
-              })}
-            </p>
-          )}
-        </div>
+            <div className="space-y-2">
+              <FormLabel htmlFor="grokbuild-config-toml">
+                {t("grokBuild.rawConfig", { defaultValue: "config.toml" })}
+              </FormLabel>
+              <JsonEditor
+                value={rawConfig}
+                onChange={handleRawConfigChange}
+                placeholder=""
+                darkMode={isDarkMode}
+                rows={3}
+                showValidation={false}
+                language="javascript"
+              />
+              {rawConfigError && (
+                <p className="text-xs text-destructive">
+                  {t("grokBuild.invalidToml", {
+                    error: rawConfigError,
+                    defaultValue: `Invalid config.toml: ${rawConfigError}`,
+                  })}
+                </p>
+              )}
+            </div>
+          </>
+        )}
 
         <FormField
           control={form.control}

@@ -67,6 +67,8 @@ const TOOL_NAMES = [
   "opencode",
   "openclaw",
   "hermes",
+  "pi",
+  "mcode",
 ] as const;
 type ToolName = (typeof TOOL_NAMES)[number];
 type ToolLifecycleAction = "install" | "update";
@@ -125,6 +127,15 @@ const HERMES_WINDOWS_INSTALL_COMMAND = `powershell -NoProfile -ExecutionPolicy B
   HERMES_WINDOWS_INSTALL_SCRIPT,
 )}`;
 
+const MCODE_WINDOWS_INSTALL_COMMAND = `powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${powershellEncodedCommand(
+  "irm https://filecdn.minimax.chat/public/install.ps1 | iex",
+)}`;
+
+// 与后端 npm_install_command_for("mcode") 保持一致：npm 12 默认拦截依赖的 install
+// 脚本，不放行 better-sqlite3 时 SQLite 不可用。
+const MCODE_NPM_INSTALL_COMMAND =
+  'npm i -g @minimax-ai/code@latest --ignore-scripts=false --include=optional "--allow-scripts=@minimax-ai/code,better-sqlite3"';
+
 const POSIX_ONE_CLICK_INSTALL_COMMANDS = `# Claude Code
 ${posixScriptInstallCommand("https://claude.ai/install.sh")} || npm i -g @anthropic-ai/claude-code@latest
 # Codex
@@ -138,7 +149,11 @@ ${posixScriptInstallCommand("https://opencode.ai/install")} || npm i -g opencode
 # OpenClaw
 npm i -g openclaw@latest
 # Hermes
-${posixScriptInstallCommand("https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh")}`;
+${posixScriptInstallCommand("https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh")}
+# Pi
+npm i -g @earendil-works/pi-coding-agent@latest
+# MiniMax Code
+${posixScriptInstallCommand("https://filecdn.minimax.chat/public/install.sh")} || ${MCODE_NPM_INSTALL_COMMAND}`;
 
 const WINDOWS_ONE_CLICK_INSTALL_COMMANDS = `# Claude Code
 npm i -g @anthropic-ai/claude-code@latest
@@ -153,7 +168,11 @@ npm i -g opencode-ai@latest
 # OpenClaw
 npm i -g openclaw@latest
 # Hermes
-${HERMES_WINDOWS_INSTALL_COMMAND}`;
+${HERMES_WINDOWS_INSTALL_COMMAND}
+# Pi
+npm i -g @earendil-works/pi-coding-agent@latest
+# MiniMax Code
+${MCODE_WINDOWS_INSTALL_COMMAND}`;
 
 const ONE_CLICK_INSTALL_COMMANDS = isWindows()
   ? WINDOWS_ONE_CLICK_INSTALL_COMMANDS
@@ -167,6 +186,8 @@ const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
   opencode: "OpenCode",
   openclaw: "OpenClaw",
   hermes: "Hermes",
+  pi: "Pi",
+  mcode: "MiniMax Code",
 };
 
 // 后端返回的 tool 是 string；这里收敛唯一的 ToolName 断言与兜底，供升级确认
@@ -183,6 +204,8 @@ const TOOL_APP_IDS: Record<ToolName, AppId> = {
   opencode: "opencode",
   openclaw: "openclaw",
   hermes: "hermes",
+  pi: "pi",
+  mcode: "mcode",
 };
 
 // 工具版本探测代价高：每个工具一次 `--version` 子进程 + 一次 npm/github/pypi 网络请求。
@@ -253,9 +276,12 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
   const [isDiagnosingAll, setIsDiagnosingAll] = useState(false);
   // 升级前探测到「多处安装需确认」时暂存：toolNames=本次要升级的全部工具，
   // plans=其中需要确认的（≥2 处）那些。用户确认后对 toolNames 整体执行升级。
+  // fromBatchEntry=是否来自「全部升级」入口：确认后执行期需据此补 batchAction
+  // （executeRun 按数量判 isBatch，「全部升级(1)」会漏掉顶部按钮的 spinner）。
   const [pendingUpgrade, setPendingUpgrade] = useState<{
     toolNames: ToolName[];
     plans: ToolInstallationReport[];
+    fromBatchEntry: boolean;
   } | null>(null);
   // 升级 preflight(probe 阶段)的 in-flight 工具集合。
   // probeToolInstallations 是个 1-3 秒级别的跨进程探测(对每个工具跑 --version + canonicalize),
@@ -451,6 +477,10 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
     }
   }, [t, updateInfo?.availableVersion, version]);
 
+  const handleOpenGithub = useCallback(() => {
+    void settingsApi.openExternal("https://github.com/farion1231/cc-switch");
+  }, []);
+
   const handleCheckUpdate = useCallback(async () => {
     if (hasUpdate) {
       if (isPortable) {
@@ -496,7 +526,10 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
       }
     } catch (error) {
       console.error("[AboutSection] Check update failed", error);
-      toast.error(t("settings.checkUpdateFailed"));
+      toast.error(t("settings.checkUpdateFailed"), {
+        description: extractErrorMessage(error) || undefined,
+        closeButton: true,
+      });
     }
   }, [checkUpdate, hasUpdate, isPortable, resetDismiss, t]);
 
@@ -745,7 +778,11 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
   // 只要有一个工具被锁,整批不开新一轮,因为后端 set -e 串行的语义假设是「一次性
   // 单脚本」,跨两次 IPC 并发会破坏它。
   const handleRunToolAction = useCallback(
-    async (toolNames: ToolName[], action: ToolLifecycleAction) => {
+    async (
+      toolNames: ToolName[],
+      action: ToolLifecycleAction,
+      options?: { fromBatchEntry?: boolean },
+    ) => {
       if (toolNames.length === 0) return;
       if (
         toolNames.some(
@@ -761,6 +798,15 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
         toolNames.forEach((name) => next.add(name));
         return next;
       });
+      // 「全部升级」入口在 probe 阶段就点亮 spinner:batchAction 若只由 executeRun
+      // 置位,预检的数秒(探测超时兜底时更久)里按钮只 disabled 不转圈,观感如
+      // "点了没反应"。按入口来源而非 toolNames.length 判定——「全部升级(1)」
+      // 传入长度 1,按数量判会漏。executeRun 内部会再置位/清除,重复 set 无害;
+      // 弹确认框路径由 finally 清掉,对话框期间不转圈。
+      const fromBatchEntry = options?.fromBatchEntry ?? false;
+      if (fromBatchEntry) {
+        setBatchAction(action);
+      }
       try {
         if (action === "install") {
           await executeRun(toolNames, action);
@@ -775,13 +821,44 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
           await executeRun(toolNames, action);
           return;
         }
-        const needConfirm = reports.filter((r) => r.needs_confirmation);
+        // 认不出安装渠道的原生安装（winget / Scoop / 手动下载的二进制等）不执行升级：
+        // 退回 npm 只会另装一份 npm 版（#7650）。跳过并提示用原安装方式升级，其余照常。
+        const unmanaged = reports.filter((r) => r.unmanaged);
+        if (unmanaged.length > 0) {
+          toast.warning(t("settings.toolUpgradeUnmanagedTitle"), {
+            description: unmanaged
+              .map((r) =>
+                t("settings.toolUpgradeUnmanagedDetail", {
+                  tool: toolDisplayName(r.tool),
+                  path:
+                    (r.installs.find((i) => i.is_path_default) ?? r.installs[0])
+                      ?.path ?? "",
+                }),
+              )
+              .join("\n"),
+            closeButton: true,
+          });
+        }
+        const runnableTools = toolNames.filter(
+          (name) => !unmanaged.some((r) => r.tool === name),
+        );
+        if (runnableTools.length === 0) return;
+        const needConfirm = reports.filter(
+          (r) => r.needs_confirmation && !r.unmanaged,
+        );
         if (needConfirm.length === 0) {
-          await executeRun(toolNames, action);
+          await executeRun(runnableTools, action);
           return;
         }
-        setPendingUpgrade({ toolNames, plans: needConfirm });
+        setPendingUpgrade({
+          toolNames: runnableTools,
+          plans: needConfirm,
+          fromBatchEntry,
+        });
       } finally {
+        if (fromBatchEntry) {
+          setBatchAction(null);
+        }
         setPreflightTools((prev) => {
           const next = new Set(prev);
           toolNames.forEach((name) => next.delete(name));
@@ -789,12 +866,22 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
         });
       }
     },
-    [executeRun, preflightTools, toolActions],
+    [executeRun, preflightTools, toolActions, t],
   );
 
   const handleConfirmUpgrade = useCallback(() => {
     if (pendingUpgrade) {
-      void executeRun(pendingUpgrade.toolNames, "update");
+      const { toolNames, fromBatchEntry } = pendingUpgrade;
+      // executeRun 按数量判 isBatch，「全部升级(1)」确认后执行期会漏置 batchAction，
+      // 由入口来源在这里补上；对 >1 的场景 executeRun 会重复置位/清除，无害。
+      if (fromBatchEntry) {
+        setBatchAction("update");
+      }
+      void executeRun(toolNames, "update").finally(() => {
+        if (fromBatchEntry) {
+          setBatchAction(null);
+        }
+      });
     }
     setPendingUpgrade(null);
   }, [pendingUpgrade, executeRun]);
@@ -862,7 +949,39 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
             </div>
           </div>
 
+          <p className="min-w-0 flex-1 text-xs leading-relaxed sm:text-right">
+            <a
+              href="https://github.com/farion1231/cc-switch"
+              onClick={(event) => {
+                event.preventDefault();
+                handleOpenGithub();
+              }}
+              className="font-medium text-primary hover:underline"
+            >
+              {t("settings.starPrompt")}
+            </a>
+            <span aria-hidden="true" className="ml-1.5">
+              👉
+            </span>
+          </p>
+
           <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleOpenGithub}
+              className="h-8 gap-1.5 border-primary/30 bg-primary/10 text-xs text-primary hover:bg-primary/20 hover:text-primary"
+            >
+              <Github className="h-3.5 w-3.5" />
+              {t("settings.github")}
+              <span
+                aria-hidden="true"
+                className="inline-block animate-[spin_4s_linear_infinite] motion-reduce:animate-none"
+              >
+                ⭐
+              </span>
+            </Button>
             <Button
               type="button"
               variant="outline"
@@ -872,20 +991,6 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
             >
               <Globe className="h-3.5 w-3.5" />
               {t("settings.officialWebsite")}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                settingsApi.openExternal(
-                  "https://github.com/farion1231/cc-switch",
-                )
-              }
-              className="h-8 gap-1.5 text-xs"
-            >
-              <Github className="h-3.5 w-3.5" />
-              {t("settings.github")}
             </Button>
             <Button
               type="button"
@@ -988,7 +1093,11 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
             <Button
               size="sm"
               className="h-7 gap-1.5 text-xs"
-              onClick={() => handleRunToolAction(updatableToolNames, "update")}
+              onClick={() =>
+                handleRunToolAction(updatableToolNames, "update", {
+                  fromBatchEntry: true,
+                })
+              }
               disabled={
                 isLoadingTools || isAnyBusy || updatableToolNames.length === 0
               }
@@ -1193,7 +1302,9 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
                       onClick={() => handleRunToolAction([toolName], action)}
                       disabled={isToolVersionLoading || isAnyBusy}
                     >
-                      {runningAction ? (
+                      {/* preflight（升级前冲突探测）阶段也转圈：此时 toolActions
+                          尚未置位，只 disabled 不转圈会让探测的数秒像"点了没反应"。 */}
+                      {runningAction || preflightTools.has(toolName) ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : action === "install" ? (
                         <Download className="h-3.5 w-3.5" />
