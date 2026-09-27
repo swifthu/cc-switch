@@ -27,6 +27,7 @@ export interface ProxyStatus {
   last_error: string | null;
   failover_count: number;
   active_targets?: ActiveTarget[];
+  gateway_token?: string;
 }
 
 export interface ActiveTarget {
