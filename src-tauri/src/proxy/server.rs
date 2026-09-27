@@ -273,10 +273,18 @@ impl ProxyServer {
             })
             .collect();
 
+        // 如果代理正在运行，填充 gateway_token
+        if status.running {
+            status.gateway_token = Some(
+                crate::claude_desktop_config::get_or_create_gateway_token(self.state.db.as_ref())
+                    .unwrap_or_default()
+            );
+        }
+
         status
     }
 
-    /// 更新某个应用类型当前“目标供应商”（用于 UI 展示 active_targets）
+    /// 更新某个应用类型当前”目标供应商”（用于 UI 展示 active_targets）
     ///
     /// 注意：这不代表该供应商一定已经处理过请求，而是用于“热切换/启用故障转移立即切 P1”
     /// 等场景下，让 UI 能立刻反映最新目标。
