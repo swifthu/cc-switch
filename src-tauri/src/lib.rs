@@ -1201,6 +1201,17 @@ pub fn run() {
             let skill_service = SkillService::new();
             app.manage(commands::skill::SkillServiceState(Arc::new(skill_service)));
 
+            // 初始化 OfficeGatewayService
+            {
+                use crate::office_gateway::OfficeGatewayService;
+                use commands::OfficeGatewayState;
+
+                let app_config_dir = crate::config::get_app_config_dir();
+                let office_service = OfficeGatewayService::new(app_config_dir);
+                app.manage(OfficeGatewayState(Arc::new(office_service)));
+                log::info!("✓ OfficeGatewayService initialized");
+            }
+
             // 初始化 CopilotAuthManager
             {
                 use crate::proxy::providers::copilot_auth::CopilotAuthManager;
