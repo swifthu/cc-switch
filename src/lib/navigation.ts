@@ -22,7 +22,8 @@ export type GlobalPage =
   | "skillsDiscovery"
   | "prompts"
   | "sessions"
-  | "apps";
+  | "apps"
+  | "office";
 
 export type View = AppPage | GlobalPage | "settings";
 
@@ -59,6 +60,7 @@ const GLOBAL_PAGES: GlobalPage[] = [
   "prompts",
   "sessions",
   "apps",
+  "office",
 ];
 
 export const VIEW_STORAGE_KEY = "cc-switch-last-view";

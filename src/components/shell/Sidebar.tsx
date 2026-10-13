@@ -16,6 +16,7 @@ import {
   KeyRound,
   Layers,
   LayoutGrid,
+  Network,
   Route,
   Server,
   Settings,
@@ -273,6 +274,7 @@ function MainDirectory({
     { page: "mcp", label: "MCP", icon: Server },
     { page: "skills", label: "Skills", icon: SkillsIcon },
     { page: "prompts", label: t("nav.prompts"), icon: BookOpen },
+    { page: "office", label: t("nav.office"), icon: Network },
     { page: "sessions", label: t("nav.sessions"), icon: History },
     {
       page: "auth",

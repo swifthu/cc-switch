@@ -35,6 +35,7 @@ mod prompt;
 mod prompt_files;
 mod provider;
 mod proxy;
+mod office_gateway;
 mod services;
 mod session_manager;
 mod settings;
@@ -1427,6 +1428,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::ping_office_gateway,
             commands::get_providers,
             commands::get_current_provider,
             commands::add_provider,
