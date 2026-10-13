@@ -1428,7 +1428,16 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::ping_office_gateway,
+            commands::get_office_gateway_config,
+            commands::save_office_gateway_config,
+            commands::start_office_gateway,
+            commands::stop_office_gateway,
+            commands::restart_office_gateway,
+            commands::get_office_gateway_status,
+            commands::get_office_gateway_logs,
+            commands::test_office_gateway_upstream,
+            commands::clear_office_gateway_logs,
+            commands::open_office_gateway_log_file,
             commands::get_providers,
             commands::get_current_provider,
             commands::add_provider,
