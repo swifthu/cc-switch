@@ -3623,7 +3623,8 @@
         "totalRequests": "總請求數",
         "successRate": "成功率",
         "uptime": "運作時間"
-      }
+      },
+      "apiKey": "API Key"
     },
     "settings": {
       "title": "路由服務設定",
@@ -4135,7 +4136,8 @@
       "stack": "聚合"
     },
     "needsAttention": "需要處理",
-    "back": "返回"
+    "back": "返回",
+    "office": "Office Gateway"
   },
   "appsPage": {
     "showInSidebar": "在側欄顯示 {{name}}",
@@ -4865,6 +4867,89 @@
       "loading": "正在查詢額度…",
       "refresh": "重新整理額度",
       "refreshAria": "重新整理 {{login}} 的額度"
+    }
+  },
+  "office": {
+    "title": "Office Claude Gateway",
+    "subtitle": "給 Office / Excel Claude 載入項使用的 Anthropic Messages API 相容閘道。",
+    "loading": "正在載入 Office Gateway…",
+    "section": {
+      "providerConfig": "Provider 設定"
+    },
+    "provider": {
+      "auto": "Auto",
+      "deepseek": "DeepSeek",
+      "kimi": "Kimi",
+      "mimo": "MiMo",
+      "minimax": "MiniMax",
+      "apiKey": "API Key（留空則讀取請求標頭）",
+      "apiKeyPlaceholder": "sk- / tp- / dk-*",
+      "baseUrl": "Base URL",
+      "baseUrlHelp": "Base URL 填入相容 Claude API 的服務端點，不要以斜線結尾。",
+      "modelMapping": "模型對應 · {{label}}",
+      "modelPrimary": "Primary",
+      "modelMid": "Mid",
+      "modelFast": "Fast",
+      "modelCoding": "Coding"
+    },
+    "fields": {
+      "activeProvider": "Active Provider",
+      "baseUrl": "Office Base URL",
+      "defaultMaxTokens": "預設 max_tokens",
+      "probeMinTokens": "探測最小 tokens",
+      "listenPort": "監聽通訊埠",
+      "currentStatus": "當前狀態"
+    },
+    "status": {
+      "running": "執行中",
+      "stopped": "已停止",
+      "connectable": "Office 可連線",
+      "waiting": "啟動後 Office 才能連線"
+    },
+    "button": {
+      "start": "啟動",
+      "stop": "停止",
+      "restart": "重新啟動",
+      "save": "儲存設定",
+      "test": "測試上游",
+      "copy": "複製"
+    },
+    "providerHelp": {
+      "auto": "Auto 會依請求中的 key 前綴分流：dk-* → DeepSeek，sk-kimi-* → Kimi，sk-api-* / sk-cp-* → MiniMax，tp-* / sk-mimo-* / 一般 sk-* → MiMo。",
+      "fixed": "固定 Provider 模式會優先使用本頁儲存的 API Key；留空時從 Office 請求標頭讀取。"
+    },
+    "kimi": {
+      "codingBaseUrl": "Coding Base URL"
+    },
+    "mimo": {
+      "tpTitle": "MiMo Token Plan 區域",
+      "tpDescription": "請求標頭 x-mimo-tp-region 可選 cn / sgp / ams。",
+      "cnBaseUrl": "CN Base URL",
+      "sgpBaseUrl": "SGP Base URL",
+      "amsBaseUrl": "AMS Base URL"
+    },
+    "minimax": {
+      "globalBaseUrl": "Global Base URL"
+    },
+    "logs": {
+      "title": "即時記錄",
+      "notCreated": "記錄檔案尚未建立",
+      "clear": "清空",
+      "open": "開啟",
+      "empty": "暫無記錄。啟動閘道或發送 Office 請求後會自動重新整理。"
+    },
+    "toast": {
+      "loadFailed": "載入 Office Gateway 失敗：{{error}}",
+      "saved": "Office Gateway 設定已儲存",
+      "testOk": "上游測試通過：HTTP {{status}}",
+      "testFailed": "上游測試失敗：HTTP {{status}}",
+      "started": "Office Gateway 已啟動",
+      "stopped": "Office Gateway 已停止",
+      "restarted": "Office Gateway 已重新啟動",
+      "copiedBaseUrl": "已複製 Office Base URL",
+      "copiedLogs": "已複製記錄",
+      "logsCleared": "記錄已清空",
+      "logFileOpened": "已開啟記錄檔案"
     }
   }
 }

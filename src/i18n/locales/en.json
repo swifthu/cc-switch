@@ -3622,7 +3622,8 @@
         "totalRequests": "Total Requests",
         "successRate": "Success Rate",
         "uptime": "Uptime"
-      }
+      },
+      "apiKey": "API Key"
     },
     "settings": {
       "title": "Routing Service Settings",
@@ -4134,7 +4135,8 @@
       "stack": "Aggregation"
     },
     "needsAttention": "Needs attention",
-    "back": "Back"
+    "back": "Back",
+    "office": "Office Gateway"
   },
   "appsPage": {
     "showInSidebar": "Show {{name}} in the sidebar",
@@ -4864,6 +4866,89 @@
       "loading": "Checking quota…",
       "refresh": "Refresh quota",
       "refreshAria": "Refresh quota for {{login}}"
+    }
+  },
+  "office": {
+    "title": "Office Claude Gateway",
+    "subtitle": "Anthropic Messages API-compatible gateway for the Office / Excel Claude add-in.",
+    "loading": "Loading Office Gateway…",
+    "section": {
+      "providerConfig": "Provider config"
+    },
+    "provider": {
+      "auto": "Auto",
+      "deepseek": "DeepSeek",
+      "kimi": "Kimi",
+      "mimo": "MiMo",
+      "minimax": "MiniMax",
+      "apiKey": "API Key (empty reads from request header)",
+      "apiKeyPlaceholder": "sk- / tp- / dk-*",
+      "baseUrl": "Base URL",
+      "baseUrlHelp": "Base URL must be a Claude API-compatible endpoint; do not end with a slash.",
+      "modelMapping": "Model mapping · {{label}}",
+      "modelPrimary": "Primary",
+      "modelMid": "Mid",
+      "modelFast": "Fast",
+      "modelCoding": "Coding"
+    },
+    "fields": {
+      "activeProvider": "Active Provider",
+      "baseUrl": "Office Base URL",
+      "defaultMaxTokens": "Default max_tokens",
+      "probeMinTokens": "Probe min tokens",
+      "listenPort": "Listen port",
+      "currentStatus": "Current status"
+    },
+    "status": {
+      "running": "Running",
+      "stopped": "Stopped",
+      "connectable": "Office can connect",
+      "waiting": "Start the gateway before Office can connect"
+    },
+    "button": {
+      "start": "Start",
+      "stop": "Stop",
+      "restart": "Restart",
+      "save": "Save config",
+      "test": "Test upstream",
+      "copy": "Copy"
+    },
+    "providerHelp": {
+      "auto": "Auto routes by API key prefix in the request: dk-* → DeepSeek, sk-kimi-* → Kimi, sk-api-* / sk-cp-* → MiniMax, tp-* / sk-mimo-* / generic sk-* → MiMo.",
+      "fixed": "Fixed Provider mode uses the API Key from this page; if empty, the key is read from the Office request header."
+    },
+    "kimi": {
+      "codingBaseUrl": "Coding Base URL"
+    },
+    "mimo": {
+      "tpTitle": "MiMo Token Plan region",
+      "tpDescription": "Request header x-mimo-tp-region accepts cn / sgp / ams.",
+      "cnBaseUrl": "CN Base URL",
+      "sgpBaseUrl": "SGP Base URL",
+      "amsBaseUrl": "AMS Base URL"
+    },
+    "minimax": {
+      "globalBaseUrl": "Global Base URL"
+    },
+    "logs": {
+      "title": "Live logs",
+      "notCreated": "Log file not yet created",
+      "clear": "Clear",
+      "open": "Open",
+      "empty": "No logs yet. Logs appear automatically after starting the gateway or sending an Office request."
+    },
+    "toast": {
+      "loadFailed": "Failed to load Office Gateway: {{error}}",
+      "saved": "Office Gateway config saved",
+      "testOk": "Upstream test passed: HTTP {{status}}",
+      "testFailed": "Upstream test failed: HTTP {{status}}",
+      "started": "Office Gateway started",
+      "stopped": "Office Gateway stopped",
+      "restarted": "Office Gateway restarted",
+      "copiedBaseUrl": "Office Base URL copied",
+      "copiedLogs": "Logs copied",
+      "logsCleared": "Logs cleared",
+      "logFileOpened": "Log file opened"
     }
   }
 }

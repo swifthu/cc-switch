@@ -3622,7 +3622,8 @@
         "totalRequests": "総リクエスト数",
         "successRate": "成功率",
         "uptime": "稼働時間"
-      }
+      },
+      "apiKey": "API Key"
     },
     "settings": {
       "title": "ルーティングサービス設定",
@@ -4134,7 +4135,8 @@
       "stack": "集約"
     },
     "needsAttention": "対応が必要",
-    "back": "戻る"
+    "back": "戻る",
+    "office": "Office Gateway"
   },
   "appsPage": {
     "showInSidebar": "{{name}} をサイドバーに表示",
@@ -4864,6 +4866,89 @@
       "loading": "残量を確認中…",
       "refresh": "残量を更新",
       "refreshAria": "{{login}} の残量を更新"
+    }
+  },
+  "office": {
+    "title": "Office Claude Gateway",
+    "subtitle": "Office / Excel Claude アドイン用の Anthropic Messages API 互換ゲートウェイ。",
+    "loading": "Office Gateway を読み込み中…",
+    "section": {
+      "providerConfig": "Provider 設定"
+    },
+    "provider": {
+      "auto": "Auto",
+      "deepseek": "DeepSeek",
+      "kimi": "Kimi",
+      "mimo": "MiMo",
+      "minimax": "MiniMax",
+      "apiKey": "API Key（空欄の場合はリクエストヘッダから読み取り）",
+      "apiKeyPlaceholder": "sk- / tp- / dk-*",
+      "baseUrl": "Base URL",
+      "baseUrlHelp": "Base URL は Claude API 互換のエンドポイントを指定し、末尾にスラッシュを付けないでください。",
+      "modelMapping": "モデルマッピング · {{label}}",
+      "modelPrimary": "Primary",
+      "modelMid": "Mid",
+      "modelFast": "Fast",
+      "modelCoding": "Coding"
+    },
+    "fields": {
+      "activeProvider": "Active Provider",
+      "baseUrl": "Office Base URL",
+      "defaultMaxTokens": "デフォルト max_tokens",
+      "probeMinTokens": "プローブ最小 tokens",
+      "listenPort": "リスニングポート",
+      "currentStatus": "現在の状態"
+    },
+    "status": {
+      "running": "実行中",
+      "stopped": "停止中",
+      "connectable": "Office が接続可能",
+      "waiting": "Office が接続する前にゲートウェイを起動"
+    },
+    "button": {
+      "start": "起動",
+      "stop": "停止",
+      "restart": "再起動",
+      "save": "設定を保存",
+      "test": "アップストリームをテスト",
+      "copy": "コピー"
+    },
+    "providerHelp": {
+      "auto": "Auto はリクエスト内のキー接頭辞で振り分けます：dk-* → DeepSeek、sk-kimi-* → Kimi、sk-api-* / sk-cp-* → MiniMax、tp-* / sk-mimo-* / 通常の sk-* → MiMo。",
+      "fixed": "固定 Provider モードではこのページに保存された API Key を優先使用し、空欄の場合は Office リクエストヘッダから読み取ります。"
+    },
+    "kimi": {
+      "codingBaseUrl": "Coding Base URL"
+    },
+    "mimo": {
+      "tpTitle": "MiMo Token Plan リージョン",
+      "tpDescription": "リクエストヘッダ x-mimo-tp-region は cn / sgp / ams を受け付けます。",
+      "cnBaseUrl": "CN Base URL",
+      "sgpBaseUrl": "SGP Base URL",
+      "amsBaseUrl": "AMS Base URL"
+    },
+    "minimax": {
+      "globalBaseUrl": "Global Base URL"
+    },
+    "logs": {
+      "title": "リアルタイムログ",
+      "notCreated": "ログファイルはまだ作成されていません",
+      "clear": "クリア",
+      "open": "開く",
+      "empty": "ログはありません。ゲートウェイを起動するか Office リクエストを送信すると自動的に更新されます。"
+    },
+    "toast": {
+      "loadFailed": "Office Gateway の読み込みに失敗：{{error}}",
+      "saved": "Office Gateway 設定を保存しました",
+      "testOk": "アップストリームテスト成功：HTTP {{status}}",
+      "testFailed": "アップストリームテスト失敗：HTTP {{status}}",
+      "started": "Office Gateway を起動しました",
+      "stopped": "Office Gateway を停止しました",
+      "restarted": "Office Gateway を再起動しました",
+      "copiedBaseUrl": "Office Base URL をコピーしました",
+      "copiedLogs": "ログをコピーしました",
+      "logsCleared": "ログをクリアしました",
+      "logFileOpened": "ログファイルを開きました"
     }
   }
 }
