@@ -173,6 +173,10 @@ export const providersApi = {
     return await invoke("get_claude_desktop_default_routes");
   },
 
+  async revealClaudeDesktopGatewayToken(): Promise<string> {
+    return await invoke("reveal_claude_desktop_gateway_token");
+  },
+
   async updateTrayMenu(): Promise<boolean> {
     return await invoke("update_tray_menu");
   },

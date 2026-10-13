@@ -290,7 +290,10 @@
         "inactive": "開啟 Claude Desktop 本地路由，用於需要模型對應或格式轉換的供應商。目前設定位址：{{address}}:{{port}}"
       },
       "stopBlockedByTakeover": "還有其他應用處於路由模式。請先讓這些應用回到直連，再停止路由服務。"
-    }
+    },
+    "revealToken": "顯示 Token",
+    "tokenRevealed": "Token 已複製到剪貼簿",
+    "revealTokenFailed": "Token 讀取失敗：{{error}}"
   },
   "notifications": {
     "providerAdded": "供應商已新增",

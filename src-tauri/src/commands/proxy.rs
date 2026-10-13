@@ -217,6 +217,21 @@ pub async fn get_proxy_status(state: tauri::State<'_, AppState>) -> Result<Proxy
     state.proxy_service.get_status().await
 }
 
+/// 按需返回 Claude Desktop 的 gateway token（懒加载，避免 status 公开结构暴露明文 token）。
+/// 调用 `claude_desktop_config::get_or_create_gateway_token` 自动生成/读取。
+#[tauri::command]
+pub async fn reveal_claude_desktop_gateway_token(
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    let db = state.db.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::claude_desktop_config::get_or_create_gateway_token(&db)
+    })
+    .await
+    .map_err(|e| format!("reveal gateway token task failed: {e}"))?
+    .map_err(|e| format!("failed to reveal gateway token: {e}"))
+}
+
 /// 获取代理配置
 #[tauri::command]
 pub async fn get_proxy_config(state: tauri::State<'_, AppState>) -> Result<ProxyConfig, String> {

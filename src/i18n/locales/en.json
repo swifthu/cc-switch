@@ -290,7 +290,10 @@
         "inactive": "Turn on Claude Desktop local routing for providers that need model mapping or format conversion. Configured address: {{address}}:{{port}}"
       },
       "stopBlockedByTakeover": "Other apps are still in Routing mode. Switch them back to Direct before stopping the routing service."
-    }
+    },
+    "revealToken": "Show Token",
+    "tokenRevealed": "Token copied to clipboard",
+    "revealTokenFailed": "Could not read the token: {{error}}"
   },
   "notifications": {
     "providerAdded": "Provider added",

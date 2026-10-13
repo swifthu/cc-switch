@@ -290,7 +290,10 @@
         "inactive": "モデルマッピングや形式変換が必要なプロバイダー向けに Claude Desktop ローカルルーティングを起動します。設定アドレス: {{address}}:{{port}}"
       },
       "stopBlockedByTakeover": "ルーティングモードのアプリが他にもあります。それらを直接接続に戻してから、ルーティングサービスを停止してください。"
-    }
+    },
+    "revealToken": "トークンを表示",
+    "tokenRevealed": "トークンをクリップボードにコピーしました",
+    "revealTokenFailed": "トークンの取得に失敗しました: {{error}}"
   },
   "notifications": {
     "providerAdded": "プロバイダーを追加しました",
