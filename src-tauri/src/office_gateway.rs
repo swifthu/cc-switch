@@ -1119,6 +1119,27 @@ fn sanitize_request(
             removed_fields.push(key.clone());
         }
     }
+    // MiniMax 全系强制 thinking = adaptive。客户端常送 `thinking.type = "disabled"`
+    // (或 `reasoning.effort = none`)，MiniMax M3.1-Flash-Preview 等新模型会直接返回
+    // 400 (`requires adaptive thinking`)。这里只在缺失或显式 `disabled` 时覆写，
+    // `enabled`/`adaptive`/带 budget 数字的设置全部保留。
+    if provider == OfficeGatewayProviderKind::MiniMax {
+        let needs_adaptive = match body.get("thinking") {
+            None => true,
+            Some(Value::Object(t)) => t
+                .get("type")
+                .and_then(Value::as_str)
+                .is_some_and(|s| s == "disabled"),
+            Some(Value::String(s)) => s == "disabled",
+            _ => false,
+        };
+        if needs_adaptive {
+            body.insert(
+                "thinking".to_string(),
+                json!({"type": "adaptive"}),
+            );
+        }
+    }
     if let Some(system) = body.get("system").cloned() {
         body.insert("system".to_string(), normalize_system(system));
     }
@@ -2035,6 +2056,43 @@ mod tests {
             sanitized.body["messages"][0]["content"][0]["signature"],
             json!("sig")
         );
+    }
+
+    #[test]
+    fn sanitize_minimax_forces_adaptive_thinking() {
+        let config = OfficeGatewayConfig::default();
+
+        // 缺失 → 强制 adaptive
+        let raw = json!({"messages": [{"role": "user", "content": "ping"}]});
+        let s = sanitize_request(raw, &config, OfficeGatewayProviderKind::MiniMax, false);
+        assert_eq!(s.body["thinking"], json!({"type": "adaptive"}));
+
+        // type=disabled → 强制 adaptive
+        let raw = json!({
+            "messages": [{"role": "user", "content": "ping"}],
+            "thinking": {"type": "disabled"}
+        });
+        let s = sanitize_request(raw, &config, OfficeGatewayProviderKind::MiniMax, false);
+        assert_eq!(s.body["thinking"], json!({"type": "adaptive"}));
+
+        // type=enabled 带 budget_tokens → 保留
+        let raw = json!({
+            "messages": [{"role": "user", "content": "ping"}],
+            "thinking": {"type": "enabled", "budget_tokens": 2048}
+        });
+        let s = sanitize_request(raw, &config, OfficeGatewayProviderKind::MiniMax, false);
+        assert_eq!(
+            s.body["thinking"],
+            json!({"type": "enabled", "budget_tokens": 2048})
+        );
+
+        // Mimo provider 不强制（不破坏现有 Mimo 行为）
+        let raw = json!({
+            "messages": [{"role": "user", "content": "ping"}],
+            "thinking": {"type": "disabled"}
+        });
+        let s = sanitize_request(raw, &config, OfficeGatewayProviderKind::Mimo, false);
+        assert_eq!(s.body["thinking"], json!({"type": "disabled"}));
     }
 
     #[test]
