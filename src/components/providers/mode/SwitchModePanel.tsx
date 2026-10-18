@@ -30,6 +30,7 @@ import { getRoutingReason } from "@/utils/routingReason";
 import { CODEX_OFFICIAL_PROVIDER_ID } from "@/utils/providerCapabilities";
 import { routeSwitchNotification } from "@/utils/routeSwitchNotification";
 import { extractErrorMessage } from "@/utils/errorUtils";
+import { copyText } from "@/lib/clipboard";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -51,6 +52,7 @@ import {
 import { RouteSettingsSheet } from "./RouteSettingsSheet";
 import { StackSettingsSheet } from "./StackSettingsSheet";
 import { useDesktopConfigMessages } from "./useDesktopConfigMessages";
+import { useDesktopGatewayTokenAvailable } from "./useDesktopGatewayToken";
 
 type ListCallbacks = Pick<
   React.ComponentProps<typeof ProviderList>,
@@ -144,6 +146,9 @@ export function SwitchModePanel({
   const adoptCatalog = useAdoptCodexStackCatalog();
   const modeActions = useModeActions(app);
   const desktopMessages = useDesktopConfigMessages(app === "claude-desktop");
+  const desktopTokenAvailable = useDesktopGatewayTokenAvailable(
+    app === "claude-desktop",
+  );
 
   const [dialog, setDialog] = useState<ModeDialogState | null>(null);
   const [routeSettingsOpen, setRouteSettingsOpen] = useState(false);
@@ -412,6 +417,38 @@ export function SwitchModePanel({
             {message}
           </span>
         ))}
+      </Notice>,
+    );
+  }
+  if (desktopTokenAvailable) {
+    notices.push(
+      <Notice
+        key="desktopToken"
+        tone="neutral"
+        title={t("claudeDesktop.statusTitle")}
+        actions={
+          <Button
+            variant="neutral"
+            size="compact"
+            onClick={() => {
+              void providersApi
+                .revealClaudeDesktopGatewayToken()
+                .then(copyText)
+                .then(() => toast.success(t("claudeDesktop.tokenRevealed")))
+                .catch((error) =>
+                  toast.error(
+                    t("claudeDesktop.revealTokenFailed", {
+                      error: extractErrorMessage(error),
+                    }),
+                  ),
+                );
+            }}
+          >
+            {t("claudeDesktop.revealToken")}
+          </Button>
+        }
+      >
+        <span className="block">{t("claudeDesktop.tokenHint")}</span>
       </Notice>,
     );
   }

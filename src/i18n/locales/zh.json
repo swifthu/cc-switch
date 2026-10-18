@@ -293,7 +293,8 @@
     },
     "revealToken": "显示 Token",
     "tokenRevealed": "Token 已复制到剪贴板",
-    "revealTokenFailed": "Token 读取失败：{{error}}"
+    "revealTokenFailed": "Token 读取失败：{{error}}",
+    "tokenHint": "供其他应用调用路由服务使用的 Gateway Token。"
   },
   "notifications": {
     "providerAdded": "供应商已添加",

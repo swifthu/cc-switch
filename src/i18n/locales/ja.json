@@ -293,7 +293,8 @@
     },
     "revealToken": "トークンを表示",
     "tokenRevealed": "トークンをクリップボードにコピーしました",
-    "revealTokenFailed": "トークンの取得に失敗しました: {{error}}"
+    "revealTokenFailed": "トークンの取得に失敗しました: {{error}}",
+    "tokenHint": "他のアプリがルーティングサービスを呼び出すための Gateway トークン。"
   },
   "notifications": {
     "providerAdded": "プロバイダーを追加しました",

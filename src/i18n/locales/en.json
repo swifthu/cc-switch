@@ -293,7 +293,8 @@
     },
     "revealToken": "Show Token",
     "tokenRevealed": "Token copied to clipboard",
-    "revealTokenFailed": "Could not read the token: {{error}}"
+    "revealTokenFailed": "Could not read the token: {{error}}",
+    "tokenHint": "Gateway token for other apps to call the routing service."
   },
   "notifications": {
     "providerAdded": "Provider added",
