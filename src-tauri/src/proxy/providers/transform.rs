@@ -485,11 +485,34 @@ fn convert_message_to_openai(
                             None => String::new(),
                         }
                     };
-                    result.push(json!({
-                        "role": "tool",
-                        "tool_call_id": tool_use_id,
-                        "content": content_str
-                    }));
+                    // OpenAI 要求一个 tool_call 恰好一条 tool 消息。Anthropic 客户端可能把
+                    // 一次工具调用的结果拆成多个共用同一 tool_use_id 的 tool_result 块
+                    // （Office 的 read_slide_text 每页幻灯片一条），严格上游（DeepSeek）
+                    // 会把多出的 tool 消息判成孤儿 400。同 id 的后续块并入第一条。
+                    if let Some(existing) = result.iter_mut().find(|m| {
+                        m.get("role").and_then(|r| r.as_str()) == Some("tool")
+                            && m.get("tool_call_id").and_then(|i| i.as_str()) == Some(tool_use_id)
+                    }) {
+                        let prev = existing
+                            .get("content")
+                            .and_then(|c| c.as_str())
+                            .unwrap_or("")
+                            .to_string();
+                        let merged = if prev.is_empty() {
+                            content_str
+                        } else if content_str.is_empty() {
+                            prev
+                        } else {
+                            format!("{prev}\n\n{content_str}")
+                        };
+                        existing["content"] = json!(merged);
+                    } else {
+                        result.push(json!({
+                            "role": "tool",
+                            "tool_call_id": tool_use_id,
+                            "content": content_str
+                        }));
+                    }
                 }
                 "thinking" => {
                     // 提取 thinking 内容，后续可作为 reasoning_content 传给需要它的上游。
@@ -1311,6 +1334,68 @@ mod tests {
             messages[1]["content"],
             canonical_json_string(&json!([{"type": "text", "text": "plain"}]))
         );
+    }
+
+    #[test]
+    fn test_duplicate_tool_result_blocks_merge_into_single_tool_message() {
+        // 一次工具调用可能返回多个共用同一 tool_use_id 的 tool_result 块。
+        // 严格上游（DeepSeek OpenAI 端点）要求一个 tool_call 恰好一条 tool
+        // 消息，否则报 tool must follow tool_calls。
+        let input = json!({
+            "model": "claude-3-opus",
+            "max_tokens": 1024,
+            "messages": [{
+                "role": "user",
+                "content": [
+                    {"type": "tool_result", "tool_use_id": "call_1", "content": "第16页内容"},
+                    {"type": "tool_result", "tool_use_id": "call_1", "content": "第17页内容"},
+                    {"type": "tool_result", "tool_use_id": "call_1", "content": "第18页内容"}
+                ]
+            }]
+        });
+
+        let result = anthropic_to_openai(input).unwrap();
+        let messages = result["messages"].as_array().unwrap();
+        let tool_msgs = messages
+            .iter()
+            .filter(|m| m["role"] == "tool")
+            .collect::<Vec<_>>();
+
+        assert_eq!(tool_msgs.len(), 1, "duplicate tool_results must merge");
+        assert_eq!(tool_msgs[0]["tool_call_id"], "call_1");
+        assert_eq!(
+            tool_msgs[0]["content"],
+            "第16页内容\n\n第17页内容\n\n第18页内容"
+        );
+    }
+
+    #[test]
+    fn test_distinct_tool_result_ids_stay_separate() {
+        // 合并只针对同一个 tool_use_id；不同 id 各自对应自己的 tool_call。
+        let input = json!({
+            "model": "claude-3-opus",
+            "max_tokens": 1024,
+            "messages": [{
+                "role": "user",
+                "content": [
+                    {"type": "tool_result", "tool_use_id": "call_1", "content": "r1"},
+                    {"type": "tool_result", "tool_use_id": "call_2", "content": "r2"}
+                ]
+            }]
+        });
+
+        let result = anthropic_to_openai(input).unwrap();
+        let messages = result["messages"].as_array().unwrap();
+        let tool_msgs = messages
+            .iter()
+            .filter(|m| m["role"] == "tool")
+            .collect::<Vec<_>>();
+
+        assert_eq!(tool_msgs.len(), 2);
+        assert_eq!(tool_msgs[0]["tool_call_id"], "call_1");
+        assert_eq!(tool_msgs[0]["content"], "r1");
+        assert_eq!(tool_msgs[1]["tool_call_id"], "call_2");
+        assert_eq!(tool_msgs[1]["content"], "r2");
     }
 
     #[test]
